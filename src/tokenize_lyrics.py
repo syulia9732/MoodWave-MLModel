@@ -5,9 +5,10 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 tokenizer = AutoTokenizer.from_pretrained("monologg/bert-base-cased-goemotions-original")
 model = AutoModelForSequenceClassification.from_pretrained("monologg/bert-base-cased-goemotions-original")
 
-# Input Lyrics
-lyrics = "You are my sunshine, my only sunshine. You make me happy when skies are gray."
-
+# Read Input Lyrics from a File
+with open("lyrics.txt", "r") as file:
+    lyrics = file.read()
+    
 # Tokenize and Analyze Lyrics
 inputs = tokenizer(lyrics, return_tensors="pt", truncation=True, padding=True)
 outputs = model(**inputs)
@@ -46,15 +47,18 @@ emotion_to_color = {
 }
 
 # Predicted Emotions (Example)
-predicted_emotions = ["joy", "love"]
+predicted_emotions = []
 
-# Map Emotions to Colors
-colors = [emotion_to_color[emotion] for emotion in predicted_emotions]
-print(f"Predicted Colors: {colors}")
 
 
 
 # Map Predictions to Emotions
 emotion_labels = ["admiration", "amusement", "anger", "annoyance", "approval", "caring", "confusion", "curiosity", "desire", "disappointment", "disapproval", "disgust", "embarrassment", "excitement", "fear", "gratitude", "grief", "joy", "love", "nervousness", "optimism", "pride", "realization", "relief", "remorse", "sadness", "surprise", "neutral"]
 predicted_emotions = [emotion_labels[i] for i in predictions[0].topk(2).indices]
+
+# Map Emotions to Colors
+colors = [emotion_to_color[emotion] for emotion in predicted_emotions]
+print(f"Predicted Colors: {colors}")
+
+
 print(f"Predicted Emotions: {predicted_emotions}")
