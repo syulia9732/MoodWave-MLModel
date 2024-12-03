@@ -1,104 +1,58 @@
-# pip install spotipy pandas
+from youtube_transcript_api import YouTubeTranscriptApi
 
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import pandas as pd
-import time
-
-# Spotify API 인증
-CLIENT_ID = '8bad33795b9241f3876baf946041b13e'  # Replace with your Spotify Client ID
-CLIENT_SECRET = '17acde4c11784220991c4079da4149bf'  # Replace with your Spotify Client Secret
-
-client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
-sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-
-# 검색 파라미터
-START_YEAR = 2014
-END_YEAR = 2024
-LANGUAGE = 'en'  # Note: Spotify API does not provide direct language filtering.
-
-# 데이터 저장 경로
-CSV_FILE_PATH = "songs/preprocessed/songs_to_be_added.csv"
-
-# 컬럼명
-columns = ['track_id', 'track_name', 'artist_name', 'release_year', 'mode', 'tempo', 'duration_ms']
-
-# 데이터 저장 리스트
-song_data = []
-
-def get_audio_features(track_id):
-    """Fetch audio features for a track ID."""
+def get_youtube_transcript(video_id):
     try:
-        features = sp.audio_features(track_id)[0]
-        return features
+        # Fetch the transcript for the given video ID
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+        # Combine the transcript into a single string
+        lyrics = "\n".join([t['text'] for t in transcript])
+        return lyrics
     except Exception as e:
-        print(f"Error fetching audio features for track {track_id}: {e}")
+        print(f"Error fetching transcript: {e}")
         return None
 
-def fetch_tracks(year):
-    """Fetch tracks for a specific year."""
-    query = f"year:{year}"  # Filter by year
-    results = sp.search(q=query, type='track', limit=50, offset=0)
-
-    for track in results['tracks']['items']:
-        track_id = track['id']
-        track_name = track['name']
-        artist_name = track['artists'][0]['name']
-        release_date = track['album']['release_date']
-        release_year = int(release_date.split('-')[0])
-
-        # Get audio features
-        features = get_audio_features(track_id)
-        if features:
-            song_data.append([
-                track_id,
-                track_name,
-                artist_name,
-                release_year,
-                features['mode'],
-                features['tempo'],
-                features['duration_ms']
-            ])
-
-def main():
-    print(f"Fetching songs from {START_YEAR} to {END_YEAR}...")
-    for year in range(START_YEAR, END_YEAR + 1):
-        print(f"Fetching songs for year {year}...")
-        try:
-            fetch_tracks(year)
-            time.sleep(1)  # Avoid hitting rate limits
-        except Exception as e:
-            print(f"Error fetching songs for year {year}: {e}")
-
-    # Save to CSV
-    print(f"Saving data to {CSV_FILE_PATH}...")
-    df = pd.DataFrame(song_data, columns=columns)
-    df.to_csv(CSV_FILE_PATH, index=False)
-    print(f"Data saved successfully to {CSV_FILE_PATH}")
-
-if __name__ == "__main__":
-    main()
+# Example usage
+video_id = "YQHsXMglC9A"  # Replace with the YouTube video ID
+lyrics = get_youtube_transcript(video_id)
+print("Extracted Lyrics:\n", lyrics)
 
 
-# header = ["ID", "Song Name", "Artist Name", "Album Cover", "Features"]
+import requests
 
+def search_youtube_video(track_name, artist_name, api_key):
+    """Search for a YouTube video using track and artist name."""
+    base_url = "https://www.googleapis.com/youtube/v3/search"
+    query = f"{track_name} {artist_name}"
+    params = {
+        'part': 'snippet',
+        'q': query,
+        'type': 'video',
+        'key': api_key,
+        'maxResults': 1  # Get the top result
+    }
 
-# sample_data = [
-#     "00Ausvcr9Dp9vsgS5zvXm4",  # ID
-#     "Sample Song",  # Song Name
-#     "Sample Artist",  # Artist Name
-#     "https://example.com/album_cover.jpg",  # Album Cover URL
-#     '{"tempo": 120, "mode": "major"}'  # Features as JSON string
-# ]
+    response = requests.get(base_url, params=params)
+    if response.status_code == 200:
+        results = response.json()
+        if results['items']:
+            video_id = results['items'][0]['id']['videoId']
+            video_title = results['items'][0]['snippet']['title']
+            return video_id, video_title
+        else:
+            print("No results found.")
+            return None, None
+    else:
+        print("YouTube API error:", response.status_code, response.text)
+        return None, None
 
-# Fetch lyrics from the lyrics folder based on ID
-# lyrics_folder_path = "songs/lyrics"
-# lyrics_file_path = os.path.join(lyrics_folder_path, f"{sample_data[0]}.txt")  # Use ID to find the file
+# Example usage
+api_key = "AIzaSyCkWxMdc5vk42sHGsH6hzLBvCTuITAGej4"  # Replace with your YouTube Data API Key
+track_name = "Rolling in the Deep"
+artist_name = "Adele"
 
-# try:
-#     with open(lyrics_file_path, "r", encoding="utf-8") as lyrics_file:
-#         lyrics = lyrics_file.read().strip()  # Read and strip extra whitespace
-#         sample_data[4] = lyrics  # Set lyrics in the sample_data
-# except FileNotFoundError:
-#     print(f"Lyrics file not found for ID {sample_data[0]}")
-#     sample_data[4] = "Lyrics not available"  # Fallback if file doesn't exist
+video_id, video_title = search_youtube_video(track_name, artist_name, api_key)
+if video_id:
+    print(f"Video ID: {video_id}")
+    print(f"Video Title: {video_title}")
+else:
+    print("No video found.")
